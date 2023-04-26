@@ -37,26 +37,26 @@ import java.util.Map;
 
 public class S3StorageManager {
 
-    private static AmazonDynamoDB Client;
-    protected static DynamoDB DynamoDb;
-    private static Table RepositoryTable;
-    private AmazonS3Client S3Client;
-    private DynamoDBMapper DynamoMapper;
+    private static AmazonDynamoDB client;
+    protected static DynamoDB dynamoDB;
+    private static Table repositoryTable;
+    private AmazonS3Client s3Client;
+    private DynamoDBMapper dynamoDBMapper;
 
-    private static String BucketName;
-    private static String DocumentsFolder;
-    private static String TemplatesFolder;
+    private static String bucketName;
+    private static String documentsFolder;
+    private static String templatesFolder;
 
-    private static final Logger Log = LogManager.getLogger(S3StorageManager.class);
+    private static final Logger log = LogManager.getLogger(S3StorageManager.class);
 
 
     public S3StorageManager(BasicAWSCredentials aWSCredentials,  AmazonS3Client s3Client, String bucketName)
     {
         createClient(aWSCredentials);
-        BucketName = bucketName;
-        DocumentsFolder = bucketName + "/Documents";
-        TemplatesFolder = bucketName + "/Templates";
-        S3Client = s3Client;
+        S3StorageManager.bucketName = bucketName;
+        documentsFolder = bucketName + "/Documents";
+        templatesFolder = bucketName + "/Templates";
+        this.s3Client = s3Client;
     }
 
     public boolean AddRequest(JobRequestData requestData)
@@ -66,8 +66,8 @@ public class S3StorageManager {
 
         try
         {
-            DynamoMapper.save(entity);
-            Log.debug("[S3StorageManager AddRequest] Added template ["+ requestData.Template.getGuid() +"] to blob storage");
+            dynamoDBMapper.save(entity);
+            log.debug("[S3StorageManager AddRequest] Added template ["+ requestData.Template.getGuid() +"] to blob storage");
 
 
             ObjectMapper mapper = new ObjectMapper();
@@ -75,15 +75,15 @@ public class S3StorageManager {
 
             InputStream stream = new ByteArrayInputStream(test.getBytes
                     (Charset.forName("UTF-8")));
-            PutObjectRequest objectRequest = new PutObjectRequest(TemplatesFolder, entity.Guid, stream, null);
+            PutObjectRequest objectRequest = new PutObjectRequest(templatesFolder, entity.Guid, stream, null);
 
-            S3Client.putObject(objectRequest);
+            s3Client.putObject(objectRequest);
 
             return true;
         }
         catch (Exception ex)
         {
-            Log.error("[S3StorageManager AddRequest] Error updating request: ", ex);
+            log.error("[S3StorageManager AddRequest] Error updating request: ", ex);
             return false;
         }
     }
@@ -96,14 +96,14 @@ public class S3StorageManager {
         boolean success = false;
         try
         {
-            DynamoMapper.save(entity);
-            Log.info("[S3StorageManager] Updated request: " + guid);
+            dynamoDBMapper.save(entity);
+            log.info("[S3StorageManager] Updated request: " + guid);
             success = true;
             return success;
         }
         catch (Exception ex)
         {
-            Log.error("[S3StorageManager] Error updating request: ", ex);
+            log.error("[S3StorageManager] Error updating request: ", ex);
             return success;
         }
 
@@ -123,15 +123,15 @@ public class S3StorageManager {
             entity.setStatus(RepositoryStatus.JOB_STATUS.Complete.getValue());
         }
 
-        PutObjectRequest req = new PutObjectRequest(DocumentsFolder, guid, stream, new ObjectMetadata());
+        PutObjectRequest req = new PutObjectRequest(documentsFolder, guid, stream, new ObjectMetadata());
         try {
-            S3Client.putObject(req);
-            DynamoMapper.save(entity);
+            s3Client.putObject(req);
+            dynamoDBMapper.save(entity);
             return true;
         }
         catch (AmazonServiceException ex)
         {
-            Log.error("[S3StorageManager completeReques threw an error when trying to put object in S3: "+ex);
+            log.error("[S3StorageManager completeReques threw an error when trying to put object in S3: "+ex);
             return false;
         }
 
@@ -143,17 +143,16 @@ public class S3StorageManager {
             Map<String, AttributeValue> tmp = null;
             tmp.put("Guid", new AttributeValue(guid));
             
-            DeleteItemRequest req = new DeleteItemRequest(RepositoryTable.getTableName(), tmp);
-            Client.deleteItem(req);
+            dynamoDBMapper.delete(tmp);
 
-            S3Client.deleteObject(DocumentsFolder, guid);
-            S3Client.deleteObject(TemplatesFolder, guid);
+            s3Client.deleteObject(documentsFolder, guid);
+            s3Client.deleteObject(templatesFolder, guid);
 
             return true;
         }
         catch (Exception ex)
         {
-            Log.error("[S3StorageManager deleteRequest threw an error when trying to delete object in dynamo table: "+ex);
+            log.error("[S3StorageManager deleteRequest threw an error when trying to delete object in dynamo table: "+ex);
             return false;
         }
     }
@@ -165,7 +164,7 @@ public class S3StorageManager {
                 withAttributeValueList(new AttributeValue().withN(String.valueOf(RepositoryStatus.JOB_STATUS.Generating.getValue()))));
 
         try {
-            List<JobInfoEntity> tmp = DynamoMapper.scan(JobInfoEntity.class, scanExpression);
+            List<JobInfoEntity> tmp = dynamoDBMapper.scan(JobInfoEntity.class, scanExpression);
             for ( JobInfoEntity job : tmp)
             {
                 UpdateRequest(job.Guid, RepositoryStatus.JOB_STATUS.Pending);
@@ -174,7 +173,7 @@ public class S3StorageManager {
         }
         catch (Exception ex)
         {
-            Log.error("[S3StorageManager revertGeneratingJobsPending() threw an error when trying to revert generating jobs: "+ex);
+            log.error("[S3StorageManager revertGeneratingJobsPending() threw an error when trying to revert generating jobs: "+ex);
             return false;
         }
     }
@@ -186,7 +185,7 @@ public class S3StorageManager {
                 withAttributeValueList(new AttributeValue().withN(String.valueOf(cutoff))));
 
         try{
-            List<JobInfoEntity> tmp = DynamoMapper.scan(JobInfoEntity.class, scanExpression);
+            List<JobInfoEntity> tmp = dynamoDBMapper.scan(JobInfoEntity.class, scanExpression);
             for ( JobInfoEntity job : tmp)
             {
                 deleteRequest(job.Guid);
@@ -194,7 +193,7 @@ public class S3StorageManager {
         }
         catch (Exception ex)
         {
-            Log.error("[S3StorageManager] deleteOldRequests() threw an error when trying to delete old jobs: "+ex);
+            log.error("[S3StorageManager] deleteOldRequests() threw an error when trying to delete old jobs: "+ex);
         }
     }
 
@@ -208,48 +207,59 @@ public class S3StorageManager {
 
         while (fourTwelveEx)
         {
-        try {
+            try {
 
-            List<JobInfoEntity> entities;
-            JobInfoEntity oldestEntity = null;
+                List<JobInfoEntity> entities;
+                JobInfoEntity oldestEntity = null;
 
-            entities = DynamoMapper.scan(JobInfoEntity.class, scanExpression);
+                entities = dynamoDBMapper.scan(JobInfoEntity.class, scanExpression);
 
-            if(entities.size() == 0)
+                if(entities.size() == 0)
+                {
+                    return null;
+                }
+
+                if(entities.size() == 1)
+                {
+                    oldestEntity = entities.get(0);
+                    Template temp = getEntityFromBlob(oldestEntity.Guid, templatesFolder, Template.class);
+                    if(temp == null) {
+                        deleteRequest(temp.getGuid());
+                        continue;
+                    }
+                    oldestEntity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
+                    dynamoDBMapper.save(oldestEntity);
+
+                    return new JobRequestData(temp,  RepositoryStatus.REQUEST_TYPE.forValue(oldestEntity.getType()), oldestEntity.CreationDate);
+                }
+                Collections.sort(entities, new SortByDate());
+                Template template = null;
+                for(JobInfoEntity entity : entities) {
+                    oldestEntity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
+
+                    fourTwelveEx = false;
+
+                    log.info("[S3StorageManager] Updated job entity [{oldestEntity.Guid}] to generating.");
+
+                    template = getEntityFromBlob(oldestEntity.Guid, templatesFolder, Template.class);
+                    if(template != null) {
+                        break;
+                    }
+                    deleteRequest(template.getGuid());
+                }
+
+
+
+                JobRequestData ret = new JobRequestData(template,  RepositoryStatus.REQUEST_TYPE.valueOf(String.valueOf(oldestEntity.Type)), oldestEntity.CreationDate);
+
+                return ret;
+
+            }
+            catch (Exception ex)
             {
+                log.error("[S3StorageManager] getOldestJobAndGenerate() threw an error when trying to generate oldest jobs: "+ex);
                 return null;
             }
-
-            if(entities.size() == 1)
-            {
-                oldestEntity = entities.get(0);
-                Template temp = getEntityFromBlob(oldestEntity.Guid,  TemplatesFolder, Template.class);
-                oldestEntity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
-                DynamoMapper.save(oldestEntity);
-
-                return new JobRequestData(temp,  RepositoryStatus.REQUEST_TYPE.forValue(oldestEntity.getType()), oldestEntity.CreationDate);
-            }
-            Collections.sort(entities, new SortByDate());
-            oldestEntity = entities.get(0);
-
-            oldestEntity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
-
-            fourTwelveEx = false;
-
-            Log.info("[S3StorageManager] Updated job entity [{oldestEntity.Guid}] to generating.");
-
-            Template temp = getEntityFromBlob(oldestEntity.Guid,  TemplatesFolder, Template.class);
-
-            JobRequestData ret = new JobRequestData(temp,  RepositoryStatus.REQUEST_TYPE.valueOf(String.valueOf(oldestEntity.Type)), oldestEntity.CreationDate);
-
-            return ret;
-
-        }
-        catch (Exception ex)
-        {
-            Log.error("[S3StorageManager] getOldestJobAndGenerate() threw an error when trying to generate oldest jobs: "+ex);
-            return null;
-        }
         }
         return null;
     }
@@ -258,7 +268,7 @@ public class S3StorageManager {
         try{
             GetObjectRequest request = new GetObjectRequest(bucketName, guid);
 
-            S3Object res = S3Client.getObject(request);
+            S3Object res = s3Client.getObject(request);
 
             ObjectMapper objectMapper = new ObjectMapper();
 
@@ -268,7 +278,7 @@ public class S3StorageManager {
         }
         catch(Exception ex)
         {
-            Log.error("[S3StorageManager] getEntityFromBlob() threw an error when trying to get entity from S3: "+ex);
+            log.error("[S3StorageManager] getEntityFromBlob() threw an error when trying to get entity from S3: "+ex);
         }
 
         return null;
@@ -276,35 +286,35 @@ public class S3StorageManager {
 
     public Document getGeneratedReport(String guid)
     {
-        return getEntityFromBlob(guid, DocumentsFolder, Document.class);
+        return getEntityFromBlob(guid, documentsFolder, Document.class);
     }
 
     public ServiceError getError(String guid)
     {
-        return getEntityFromBlob(guid, DocumentsFolder, ServiceError.class);
+        return getEntityFromBlob(guid, documentsFolder, ServiceError.class);
     }
 
     public Metrics getMetrics(String guid)
     {
-        return getEntityFromBlob(guid, DocumentsFolder, Metrics.class);
+        return getEntityFromBlob(guid, documentsFolder, Metrics.class);
     }
 
     public TagTree getTagTree(String guid)
     {
-        return getEntityFromBlob(guid, DocumentsFolder, TagTree.class);
+        return getEntityFromBlob(guid, documentsFolder, TagTree.class);
     }
 
     public JobInfoEntity getRequestInfo(String guid)
     {
 
-        JobInfoEntity res = DynamoMapper.load(JobInfoEntity.class, guid);
+        JobInfoEntity res = dynamoDBMapper.load(JobInfoEntity.class, guid);
         return res;
     }
 
     private void createClient(BasicAWSCredentials aWSCredentials) {
-        Client = AmazonDynamoDBClientBuilder.standard().withRegion(Regions.US_EAST_1).withCredentials(new AWSStaticCredentialsProvider(aWSCredentials)).build();
-        DynamoDb = new DynamoDB(Client);
-        DynamoMapper = new DynamoDBMapper(Client);
+        client = AmazonDynamoDBClientBuilder.standard().withRegion(Regions.US_EAST_1).withCredentials(new AWSStaticCredentialsProvider(aWSCredentials)).build();
+        dynamoDB = new DynamoDB(client);
+        dynamoDBMapper = new DynamoDBMapper(client);
     }
     static class SortByDate implements Comparator<JobInfoEntity> {
         @Override
