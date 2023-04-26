@@ -51,7 +51,7 @@ public class S3Repository implements IRepository {
         storageManager = new S3StorageManager(aWSCredentials, s3Client, bucketName);
         int hours;
         try {
-            hours = Integer.parseInt(System.getProperty("hours.delete.jobs"));
+            hours = Integer.parseInt(System.getProperty("hours-delete-jobs"));
         } catch (NumberFormatException e) {
             hours = 24;
         }
@@ -90,13 +90,10 @@ public class S3Repository implements IRepository {
             }
 
             public void run() {
-                manageOldRequests(cancelToken);
+                manageRequests(cancelToken);
             }
         }.pass(token))).start();
 
-    }
-
-    private void manageOldRequests(CancellationToken cancelToken) {
     }
 
     private IJobHandler JobHandler;
@@ -115,6 +112,24 @@ public class S3Repository implements IRepository {
     @Override
     public void shutDown() {
         boolean tmp = storageManager.revertGeneratingJobsPending();
+    }
+
+    private void manageRequests(CancellationToken cancelToken) {
+        while (!shutDown && !cancelToken.isCancellationRequested()) {
+            if (datetimeLastCheckOldJobs.plus(timeSpanCheckOldJobs).isBefore(LocalDateTime.now())) {
+                deleteOldJobs();
+                datetimeLastCheckOldJobs = LocalDateTime.now();
+            }
+
+            // wait until needed again, or cancelled, or time to check for jobs.
+            try {
+                eventSignal.waitOne(timeSpanCheckOldJobs.toMillis());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+//		if (Log.isDebugEnabled())O
+//			Log.debug("FileSystemRepository management worker stopped");
     }
 
     @Override
@@ -386,6 +401,11 @@ public class S3Repository implements IRepository {
         {
             Log.error("[S3RepoPlugin] deleteReport() error deleting report: "+guid, ex);
         }
+    }
+
+    private void deleteOldJobs() {
+        LocalDateTime oldDateTime = LocalDateTime.now().minus(timeSpanDeleteOldJobs);
+        storageManager.deleteOldRequests(oldDateTime);
     }
 
     @Override
