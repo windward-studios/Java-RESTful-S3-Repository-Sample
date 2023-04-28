@@ -30,10 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class S3StorageManager {
 
@@ -212,7 +209,7 @@ public class S3StorageManager {
                 List<JobInfoEntity> entities;
                 JobInfoEntity oldestEntity = null;
 
-                entities = dynamoDBMapper.scan(JobInfoEntity.class, scanExpression);
+                entities = new ArrayList<>(dynamoDBMapper.scan(JobInfoEntity.class, scanExpression));
 
                 if(entities.size() == 0)
                 {
