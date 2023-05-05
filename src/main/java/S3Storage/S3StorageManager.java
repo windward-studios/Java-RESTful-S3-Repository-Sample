@@ -207,7 +207,6 @@ public class S3StorageManager {
             try {
 
                 List<JobInfoEntity> entities;
-                JobInfoEntity oldestEntity = null;
 
                 entities = new ArrayList<>(dynamoDBMapper.scan(JobInfoEntity.class, scanExpression));
 
@@ -218,10 +217,10 @@ public class S3StorageManager {
 
                 if(entities.size() == 1)
                 {
-                    oldestEntity = entities.get(0);
+                    JobInfoEntity oldestEntity = entities.get(0);
                     Template temp = getEntityFromBlob(oldestEntity.Guid, templatesFolder, Template.class);
                     if(temp == null) {
-                        deleteRequest(temp.getGuid());
+                        deleteRequest(oldestEntity.Guid);
                         continue;
                     }
                     oldestEntity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
@@ -232,25 +231,18 @@ public class S3StorageManager {
                 Collections.sort(entities, new SortByDate());
                 Template template = null;
                 for(JobInfoEntity entity : entities) {
-                    oldestEntity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
-
-                    fourTwelveEx = false;
-
                     log.info("[S3StorageManager] Updated job entity [{oldestEntity.Guid}] to generating.");
 
-                    template = getEntityFromBlob(oldestEntity.Guid, templatesFolder, Template.class);
-                    if(template != null) {
-                        break;
+                    template = getEntityFromBlob(entity.Guid, templatesFolder, Template.class);
+                    if(template == null) {
+                        deleteRequest(entity.getGuid());
                     }
-                    deleteRequest(template.getGuid());
+                    entity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
+                    dynamoDBMapper.save(entity);
+                    JobRequestData ret = new JobRequestData(template,  RepositoryStatus.REQUEST_TYPE.valueOf(String.valueOf(entity.Type)), entity.CreationDate);
+
+                    return ret;
                 }
-
-
-
-                JobRequestData ret = new JobRequestData(template,  RepositoryStatus.REQUEST_TYPE.valueOf(String.valueOf(oldestEntity.Type)), oldestEntity.CreationDate);
-
-                return ret;
-
             }
             catch (Exception ex)
             {
