@@ -169,7 +169,7 @@ public class S3Repository implements IRepository {
             }
             else
             {
-                Log.error("[S3RepoPlugin] Took  NULL requests for: "+job.Template.getGuid());
+                Log.info("[S3RepoPlugin] takeRequest() returning null. No requests are in the queue.");
                 return null;
             }
         }

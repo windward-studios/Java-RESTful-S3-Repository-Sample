@@ -137,7 +137,7 @@ public class S3StorageManager {
     public boolean deleteRequest(String guid)
     {
         try{
-            Map<String, AttributeValue> tmp = null;
+            Map<String, AttributeValue> tmp = new HashMap();
             tmp.put("Guid", new AttributeValue(guid));
             
             dynamoDBMapper.delete(tmp);
