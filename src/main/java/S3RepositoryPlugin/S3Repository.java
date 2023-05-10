@@ -169,7 +169,7 @@ public class S3Repository implements IRepository {
             }
             else
             {
-                Log.error("[S3RepoPlugin] Took  NULL requests for: "+job.Template.getGuid());
+                Log.info("[S3RepoPlugin] takeRequest() returning null. No requests are in the queue.");
                 return null;
             }
         }
@@ -394,7 +394,8 @@ public class S3Repository implements IRepository {
     {
         try
         {
-            storageManager.deleteRequest(guid);
+            JobInfoEntity jobInfo = storageManager.getRequestInfo(guid);
+            storageManager.deleteRequest(jobInfo);
             Log.error("[S3RepoPlugin] deleteReport() successfully deleted report: "+guid);
         }
         catch (Exception ex)
