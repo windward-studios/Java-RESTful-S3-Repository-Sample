@@ -51,8 +51,8 @@ public class S3StorageManager {
     {
         createClient(aWSCredentials);
         S3StorageManager.bucketName = bucketName;
-        documentsFolder = bucketName + "/Documents";
-        templatesFolder = bucketName + "/Templates";
+        documentsFolder = "Documents/";
+        templatesFolder = "Templates/";
         this.s3Client = s3Client;
     }
 
@@ -72,7 +72,8 @@ public class S3StorageManager {
 
             InputStream stream = new ByteArrayInputStream(test.getBytes
                     (Charset.forName("UTF-8")));
-            PutObjectRequest objectRequest = new PutObjectRequest(templatesFolder, entity.Guid, stream, null);
+
+            PutObjectRequest objectRequest = new PutObjectRequest(bucketName, templatesFolder+entity.Guid, stream, null);
 
             s3Client.putObject(objectRequest);
 
@@ -120,7 +121,7 @@ public class S3StorageManager {
             entity.setStatus(RepositoryStatus.JOB_STATUS.Complete.getValue());
         }
 
-        PutObjectRequest req = new PutObjectRequest(documentsFolder, guid, stream, new ObjectMetadata());
+        PutObjectRequest req = new PutObjectRequest(bucketName, documentsFolder+ guid, stream, new ObjectMetadata());
         try {
             s3Client.putObject(req);
             dynamoDBMapper.save(entity);
@@ -134,16 +135,14 @@ public class S3StorageManager {
 
     }
 
-    public boolean deleteRequest(String guid)
+    public boolean deleteRequest(JobInfoEntity job)
     {
         try{
-            Map<String, AttributeValue> tmp = new HashMap();
-            tmp.put("Guid", new AttributeValue(guid));
-            
-            dynamoDBMapper.delete(tmp);
 
-            s3Client.deleteObject(documentsFolder, guid);
-            s3Client.deleteObject(templatesFolder, guid);
+            dynamoDBMapper.delete(job);
+
+            s3Client.deleteObject(documentsFolder, job.Guid);
+            s3Client.deleteObject(templatesFolder, job.Guid);
 
             return true;
         }
@@ -185,7 +184,7 @@ public class S3StorageManager {
             List<JobInfoEntity> tmp = dynamoDBMapper.scan(JobInfoEntity.class, scanExpression);
             for ( JobInfoEntity job : tmp)
             {
-                deleteRequest(job.Guid);
+                deleteRequest(job);
             }
         }
         catch (Exception ex)
@@ -220,7 +219,7 @@ public class S3StorageManager {
                     JobInfoEntity oldestEntity = entities.get(0);
                     Template temp = getEntityFromBlob(oldestEntity.Guid, templatesFolder, Template.class);
                     if(temp == null) {
-                        deleteRequest(oldestEntity.Guid);
+                        deleteRequest(oldestEntity);
                         continue;
                     }
                     oldestEntity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
@@ -235,7 +234,7 @@ public class S3StorageManager {
 
                     template = getEntityFromBlob(entity.Guid, templatesFolder, Template.class);
                     if(template == null) {
-                        deleteRequest(entity.getGuid());
+                        deleteRequest(entity);
                     }
                     entity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
                     dynamoDBMapper.save(entity);
@@ -253,9 +252,9 @@ public class S3StorageManager {
         return null;
     }
 
-    private <T> T getEntityFromBlob(String guid, String bucketName, Class<T> typeParameterClass) {
+    private <T> T getEntityFromBlob(String guid, String folderName, Class<T> typeParameterClass) {
         try{
-            GetObjectRequest request = new GetObjectRequest(bucketName, guid);
+            GetObjectRequest request = new GetObjectRequest(bucketName, folderName+guid);
 
             S3Object res = s3Client.getObject(request);
 

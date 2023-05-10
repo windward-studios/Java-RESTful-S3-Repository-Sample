@@ -394,7 +394,8 @@ public class S3Repository implements IRepository {
     {
         try
         {
-            storageManager.deleteRequest(guid);
+            JobInfoEntity jobInfo = storageManager.getRequestInfo(guid);
+            storageManager.deleteRequest(jobInfo);
             Log.error("[S3RepoPlugin] deleteReport() successfully deleted report: "+guid);
         }
         catch (Exception ex)
