@@ -76,12 +76,13 @@ public class S3StorageManager {
             PutObjectRequest objectRequest = new PutObjectRequest(bucketName, templatesFolder+entity.Guid, stream, null);
 
             s3Client.putObject(objectRequest);
+            log.debug("[S3StorageManager AddRequest] Successfully added template ["+ requestData.Template.getGuid() +"]");
 
             return true;
         }
         catch (Exception ex)
         {
-            log.error("[S3StorageManager AddRequest] Error updating request: ", ex);
+            log.error("[S3StorageManager AddRequest] Error adding request: ", ex);
             return false;
         }
     }
@@ -151,7 +152,7 @@ public class S3StorageManager {
         }
         catch (Exception ex)
         {
-            log.error("[S3StorageManager deleteRequest threw an error when trying to delete object in dynamo table: "+ex);
+            log.error("[S3StorageManager] deleteRequest threw an error when trying to delete object in dynamo table: "+ex);
             return false;
         }
     }
@@ -172,7 +173,7 @@ public class S3StorageManager {
         }
         catch (Exception ex)
         {
-            log.error("[S3StorageManager revertGeneratingJobsPending() threw an error when trying to revert generating jobs: "+ex);
+            log.error("[S3StorageManager] revertGeneratingJobsPending() threw an error when trying to revert generating jobs: "+ex);
             return false;
         }
     }

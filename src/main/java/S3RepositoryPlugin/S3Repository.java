@@ -76,7 +76,7 @@ public class S3Repository implements IRepository {
         CancellationToken token = tokenSource.getToken();
 
         token.register(() -> eventSignal.set());
-        
+
         new Thread((new Runnable() {
             CancellationToken cancelToken;
 
