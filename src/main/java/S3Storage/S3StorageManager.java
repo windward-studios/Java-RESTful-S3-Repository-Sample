@@ -199,30 +199,19 @@ public class S3StorageManager {
         scanExpression.addFilterCondition("Status", new Condition().withComparisonOperator(ComparisonOperator.EQ).
                 withAttributeValueList(new AttributeValue().withN(String.valueOf(RepositoryStatus.JOB_STATUS.Pending.getValue()))));
 
-        boolean fourTwelveEx = true;
+        try {
+            List<JobInfoEntity> entities = new ArrayList<>(dynamoDBMapper.scan(JobInfoEntity.class, scanExpression));
 
-        while (fourTwelveEx)
-        {
-            try {
-                List<JobInfoEntity> entities = new ArrayList<>(dynamoDBMapper.scan(JobInfoEntity.class, scanExpression));
-
-                if(entities.size() == 0)
-                    return null;
-
-                JobRequestData ret = retrieveOldestRequest(entities);
-
-                if(ret == null)
-                    continue;
-
-                return ret;
-            }
-            catch (Exception ex)
-            {
-                log.error("[S3StorageManager] getOldestJobAndGenerate() threw an error when trying to generate oldest jobs: "+ex);
+            if(entities.size() == 0)
                 return null;
-            }
+
+            return retrieveOldestRequest(entities);
         }
-        return null;
+        catch (Exception ex)
+        {
+            log.error("[S3StorageManager] getOldestJobAndGenerate() threw an error when trying to generate oldest jobs: "+ex);
+            return null;
+        }
     }
 
     /**
@@ -249,6 +238,7 @@ public class S3StorageManager {
             return new JobRequestData(template,  RepositoryStatus.REQUEST_TYPE.forValue(oldestEntity.Type), oldestEntity.CreationDate);
         }
 
+        // No entities to be processed
         return null;
     }
 
