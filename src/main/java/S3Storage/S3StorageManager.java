@@ -204,44 +204,17 @@ public class S3StorageManager {
         while (fourTwelveEx)
         {
             try {
-
-                List<JobInfoEntity> entities;
-
-                entities = new ArrayList<>(dynamoDBMapper.scan(JobInfoEntity.class, scanExpression));
+                List<JobInfoEntity> entities = new ArrayList<>(dynamoDBMapper.scan(JobInfoEntity.class, scanExpression));
 
                 if(entities.size() == 0)
-                {
                     return null;
-                }
 
-                if(entities.size() == 1)
-                {
-                    JobInfoEntity oldestEntity = entities.get(0);
-                    Template temp = getEntityFromBlob(oldestEntity.Guid, templatesFolder, Template.class);
-                    if(temp == null) {
-                        deleteRequest(oldestEntity);
-                        continue;
-                    }
-                    oldestEntity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
-                    dynamoDBMapper.save(oldestEntity);
+                JobRequestData ret = retrieveOldestRequest(entities);
 
-                    return new JobRequestData(temp,  RepositoryStatus.REQUEST_TYPE.forValue(oldestEntity.getType()), oldestEntity.CreationDate);
-                }
-                Collections.sort(entities, new SortByDate());
-                Template template = null;
-                for(JobInfoEntity entity : entities) {
-                    log.info("[S3StorageManager] Updated job entity [{oldestEntity.Guid}] to generating.");
+                if(ret == null)
+                    continue;
 
-                    template = getEntityFromBlob(entity.Guid, templatesFolder, Template.class);
-                    if(template == null) {
-                        deleteRequest(entity);
-                    }
-                    entity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
-                    dynamoDBMapper.save(entity);
-                    JobRequestData ret = new JobRequestData(template,  RepositoryStatus.REQUEST_TYPE.valueOf(String.valueOf(entity.Type)), entity.CreationDate);
-
-                    return ret;
-                }
+                return ret;
             }
             catch (Exception ex)
             {
@@ -249,6 +222,33 @@ public class S3StorageManager {
                 return null;
             }
         }
+        return null;
+    }
+
+    /**
+     * Sorts entities and returns the oldest request to be processed
+     * @param entities The current outstanding requests to be processed
+     * @return The entity to be processed
+     */
+    private JobRequestData retrieveOldestRequest(List<JobInfoEntity> entities) {
+        Collections.sort(entities, new SortByDate());
+
+        for(int i = 0; i < entities.size(); i++) {
+            JobInfoEntity oldestEntity = entities.get(i);
+            Template template = getEntityFromBlob(oldestEntity.Guid, templatesFolder, Template.class);
+            if(template == null) {
+                deleteRequest(oldestEntity);
+                continue;   // If the template is null, delete the request and continue to next oldest request
+            }
+
+            log.info(String.format("[S3StorageManager] Updated job entity [%s] to generating.", oldestEntity.getGuid()));
+
+            oldestEntity.Status = RepositoryStatus.JOB_STATUS.Generating.getValue();
+            dynamoDBMapper.save(oldestEntity);
+
+            return new JobRequestData(template,  RepositoryStatus.REQUEST_TYPE.forValue(oldestEntity.Type), oldestEntity.CreationDate);
+        }
+
         return null;
     }
 
