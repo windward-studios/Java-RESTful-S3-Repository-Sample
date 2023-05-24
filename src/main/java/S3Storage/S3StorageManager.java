@@ -125,11 +125,14 @@ public class S3StorageManager {
         try {
             s3Client.putObject(req);
             dynamoDBMapper.save(entity);
+
+            log.info(String.format("[S3StorageManager completeRequest] Completed request [%s]", guid));
+
             return true;
         }
         catch (AmazonServiceException ex)
         {
-            log.error("[S3StorageManager completeReques threw an error when trying to put object in S3: "+ex);
+            log.error("[S3StorageManager completeRequest threw an error when trying to put object in S3: "+ex);
             return false;
         }
 
@@ -137,7 +140,7 @@ public class S3StorageManager {
 
     public boolean deleteRequest(JobInfoEntity job)
     {
-        try{
+        try {
 
             dynamoDBMapper.delete(job);
 
@@ -202,6 +205,8 @@ public class S3StorageManager {
         try {
             List<JobInfoEntity> entities = new ArrayList<>(dynamoDBMapper.scan(JobInfoEntity.class, scanExpression));
 
+            log.info(String.format("[S3StorageManager] Found %d pending jobs to be processed", entities.size()));
+
             if(entities.size() == 0)
                 return null;
 
@@ -227,6 +232,7 @@ public class S3StorageManager {
             Template template = getEntityFromBlob(oldestEntity.Guid, templatesFolder, Template.class);
             if(template == null) {
                 deleteRequest(oldestEntity);
+                log.info(String.format("[S3StorageManager] Deleted job entity [%s] due to null template.", oldestEntity.getGuid()));
                 continue;   // If the template is null, delete the request and continue to next oldest request
             }
 
@@ -239,6 +245,7 @@ public class S3StorageManager {
         }
 
         // No entities to be processed
+        log.info("[S3StorageManager] No entities to be processed.");
         return null;
     }
 
