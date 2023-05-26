@@ -5,7 +5,7 @@ import com.amazonaws.services.dynamodbv2.datamodeling.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-@DynamoDBTable(tableName="YOUR_TABLE_NAME")
+@DynamoDBTable(tableName="S3Test")
 public class JobInfoEntity implements Serializable {
 
     public String Guid;

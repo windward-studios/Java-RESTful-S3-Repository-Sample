@@ -3,19 +3,21 @@ package S3Storage;
 import WindwardModels.*;
 import WindwardRepository.RepositoryStatus;
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.regions.Regions;
+import com.amazonaws.retry.PredefinedRetryPolicies;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBScanExpression;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.ComparisonOperator;
 import com.amazonaws.services.dynamodbv2.model.Condition;
-import com.amazonaws.services.dynamodbv2.model.DeleteItemRequest;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
@@ -30,7 +32,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.concurrent.Semaphore;
 
 public class S3StorageManager {
 
@@ -44,6 +50,8 @@ public class S3StorageManager {
     private static String documentsFolder;
     private static String templatesFolder;
 
+    private Semaphore semaphore;
+
     private static final Logger log = LogManager.getLogger(S3StorageManager.class);
 
 
@@ -54,6 +62,8 @@ public class S3StorageManager {
         documentsFolder = "Documents/";
         templatesFolder = "Templates/";
         this.s3Client = s3Client;
+
+        semaphore = new Semaphore(1);
     }
 
     public boolean AddRequest(JobRequestData requestData)
@@ -63,8 +73,12 @@ public class S3StorageManager {
 
         try
         {
+            semaphore.acquire();
             dynamoDBMapper.save(entity);
+
+
             log.debug("[S3StorageManager AddRequest] Added template ["+ requestData.Template.getGuid() +"] to blob storage");
+            System.out.println("[S3StorageManager AddRequest] Added template ["+ requestData.Template.getGuid() +"] to blob storage");
 
 
             ObjectMapper mapper = new ObjectMapper();
@@ -77,6 +91,7 @@ public class S3StorageManager {
 
             s3Client.putObject(objectRequest);
             log.debug("[S3StorageManager AddRequest] Successfully added template ["+ requestData.Template.getGuid() +"]");
+            System.out.println("[S3StorageManager AddRequest] Successfully added template ["+ requestData.Template.getGuid() +"]");
 
             return true;
         }
@@ -84,6 +99,9 @@ public class S3StorageManager {
         {
             log.error("[S3StorageManager AddRequest] Error adding request: ", ex);
             return false;
+        }
+        finally {
+            semaphore.release();
         }
     }
 
@@ -124,6 +142,7 @@ public class S3StorageManager {
 
         PutObjectRequest req = new PutObjectRequest(bucketName, documentsFolder+ guid, stream, new ObjectMetadata());
         try {
+            semaphore.acquire();
             s3Client.putObject(req);
             dynamoDBMapper.save(entity);
 
@@ -135,6 +154,12 @@ public class S3StorageManager {
         {
             log.error("[S3StorageManager completeRequest threw an error when trying to put object in S3: "+ex);
             return false;
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        finally
+        {
+            semaphore.release();
         }
 
     }
@@ -159,11 +184,16 @@ public class S3StorageManager {
 
     public boolean revertGeneratingJobsPending()
     {
-        DynamoDBScanExpression scanExpression = new DynamoDBScanExpression();
-        scanExpression.addFilterCondition("Status", new Condition().withComparisonOperator(ComparisonOperator.EQ).
-                withAttributeValueList(new AttributeValue().withN(String.valueOf(RepositoryStatus.JOB_STATUS.Generating.getValue()))));
-
         try {
+
+            semaphore.acquire();
+
+            DynamoDBScanExpression scanExpression = new DynamoDBScanExpression();
+
+            scanExpression.addFilterCondition("Status", new Condition().withComparisonOperator(ComparisonOperator.EQ).
+                    withAttributeValueList(new AttributeValue().withN(String.valueOf(RepositoryStatus.JOB_STATUS.Generating.getValue()))));
+
+
             List<JobInfoEntity> tmp = dynamoDBMapper.scan(JobInfoEntity.class, scanExpression);
             for ( JobInfoEntity job : tmp)
             {
@@ -175,6 +205,9 @@ public class S3StorageManager {
         {
             log.error("[S3StorageManager] revertGeneratingJobsPending() threw an error when trying to revert generating jobs: "+ex);
             return false;
+        }
+        finally {
+            semaphore.release();
         }
     }
 
@@ -199,12 +232,16 @@ public class S3StorageManager {
 
     public JobRequestData getOldestJobAndGenerate()
     {
-        DynamoDBScanExpression scanExpression = new DynamoDBScanExpression();
-        scanExpression.addFilterCondition("Status", new Condition().withComparisonOperator(ComparisonOperator.EQ).
+        try {
+
+            semaphore.acquire();
+
+            DynamoDBScanExpression scanExpression = new DynamoDBScanExpression();
+
+            scanExpression.addFilterCondition("Status", new Condition().withComparisonOperator(ComparisonOperator.EQ).
                 withAttributeValueList(new AttributeValue().withN(String.valueOf(RepositoryStatus.JOB_STATUS.Pending.getValue()))));
 
-        try {
-            List<JobInfoEntity> entities = new ArrayList<>(dynamoDBMapper.scan(JobInfoEntity.class, scanExpression));
+            List<JobInfoEntity> entities = new ArrayList<>(dynamoDBMapper.scan(JobInfoEntity.class, scanExpression, new DynamoDBMapperConfig(DynamoDBMapperConfig.ConsistentReads.CONSISTENT)));
 
             log.info(String.format("[S3StorageManager] Found %d pending jobs to be processed", entities.size()));
 
@@ -217,6 +254,9 @@ public class S3StorageManager {
         {
             log.error("[S3StorageManager] getOldestJobAndGenerate() threw an error when trying to generate oldest jobs: "+ex);
             return null;
+        }
+        finally {
+            semaphore.release();
         }
     }
 
@@ -293,11 +333,12 @@ public class S3StorageManager {
     public JobInfoEntity getRequestInfo(String guid)
     {
 
-        JobInfoEntity res = dynamoDBMapper.load(JobInfoEntity.class, guid);
+        JobInfoEntity res = dynamoDBMapper.load(JobInfoEntity.class, guid, new DynamoDBMapperConfig(DynamoDBMapperConfig.ConsistentReads.CONSISTENT));
         return res;
     }
 
     private void createClient(BasicAWSCredentials aWSCredentials) {
+//        ClientConfiguration cf = new ClientConfiguration().withConnectionTimeout(2000).withClientExecutionTimeout(2000).withRequestTimeout(2000).withSocketTimeout(2000).withRetryPolicy(PredefinedRetryPolicies.getDynamoDBDefaultRetryPolicyWithCustomMaxRetries(15));
         client = AmazonDynamoDBClientBuilder.standard().withRegion(Regions.US_EAST_1).withCredentials(new AWSStaticCredentialsProvider(aWSCredentials)).build();
         dynamoDB = new DynamoDB(client);
         dynamoDBMapper = new DynamoDBMapper(client);

@@ -20,12 +20,14 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public class S3Repository implements IRepository {
+
+public class S3Repository implements IRepository, Runnable {
 
     private String bucketName = "";
     private String awsAccessKey = "";
@@ -46,6 +48,7 @@ public class S3Repository implements IRepository {
 
     public S3Repository()
     {
+        Log.info("Initializing S3Repository");
         aWSCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
         s3Client = (AmazonS3Client) AmazonS3ClientBuilder.standard().withCredentials(new AWSStaticCredentialsProvider(aWSCredentials)).withRegion(Regions.US_EAST_1).build();
         storageManager = new S3StorageManager(aWSCredentials, s3Client, bucketName);
@@ -134,8 +137,10 @@ public class S3Repository implements IRepository {
             template.setGuid(UUID.randomUUID().toString());
             JobRequestData jobData = new JobRequestData(template, request_type, LocalDateTime.now());
             Log.info("[S3RepoPlugin] Created request " + jobData.Template.getGuid());
+            System.out.println("[S3RepoPlugin] Created request " + jobData.Template.getGuid());
 
             boolean success = storageManager.AddRequest(jobData);
+            System.out.println("[S3RepoPlugin] Created request " + jobData.Template.getGuid() + " success: " + success);
 
             if (getJobHandler() != null) {
                 getJobHandler().Signal();
@@ -146,6 +151,7 @@ public class S3Repository implements IRepository {
         catch(Exception ex)
         {
             Log.error("[S3RepoPlugin] createRequest() Failed to created request " + template.getGuid());
+            System.out.println("[S3RepoPlugin] createRequest() Failed to created request " + template.getGuid());
         }
 
         return null;
@@ -155,23 +161,27 @@ public class S3Repository implements IRepository {
     public RepositoryRequest takeRequest() {
 
         Log.info("[S3RepoPlugin] Take request called");
+        System.out.println("[S3RepoPlugin] Take request called");
         try
         {
             JobRequestData job = storageManager.getOldestJobAndGenerate();
             if(job != null)
             {
                 Log.info("[S3RepoPlugin] Took requests: "+job.Template.getGuid());
+                System.out.println("[S3RepoPlugin] Took requests: "+job.Template.getGuid());
                 return new RepositoryRequest(job.Template, job.RequestType);
             }
             else
             {
                 Log.info("[S3RepoPlugin] takeRequest() returning null. No requests are in the queue.");
+                System.out.println("[S3RepoPlugin] takeRequest() returning null. No requests are in the queue.");
                 return null;
             }
         }
         catch (Exception ex)
         {
             Log.error("[S3RepoPlugin] TakeRequest Error in taking request: " +ex);
+            System.out.println("[S3RepoPlugin] TakeRequest Error in taking request: " +ex);
         }
         return null;
     }
@@ -184,11 +194,13 @@ public class S3Repository implements IRepository {
         if(res)
         {
             Log.info("[S3RepoPlugin] saveRequest() saved request successfully: "+template.getGuid());
+            System.out.println("[S3RepoPlugin] saveRequest() saved request successfully: "+template.getGuid());
             completeJob(template);
         }
         else
         {
             Log.error("[S3RepoPlugin] saveRequest() error saving request: "+template.getGuid());
+            System.out.println("[S3RepoPlugin] saveRequest() error saving request: "+template.getGuid());
         }
     }
 
@@ -439,5 +451,25 @@ public class S3Repository implements IRepository {
     @Override
     public DocumentPerformance getDocumentPerformanceObject(String s) {
         return null;
+    }
+
+    @Override
+    public void saveCachedResource(CachedResource cachedResource) throws Exception {
+
+    }
+
+    @Override
+    public net.windward.util.AccessProviders.models.CachedResource getCachedResource(String s) {
+        return null;
+    }
+
+    @Override
+    public void deleteCachedResource(String s) throws FileNotFoundException {
+
+    }
+
+    @Override
+    public void run() {
+
     }
 }
