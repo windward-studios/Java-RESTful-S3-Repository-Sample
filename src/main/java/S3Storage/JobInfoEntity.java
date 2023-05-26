@@ -19,6 +19,8 @@ public class JobInfoEntity implements Serializable {
     public int Status;
     public LocalDateTime CreationDate;
 
+    public static String RANGE_KEY_EXT = "-RangeKey";
+
     public  JobInfoEntity()
     {
 
@@ -29,7 +31,7 @@ public class JobInfoEntity implements Serializable {
         this.Type = type;
         this.Status = status;
         this.CreationDate = creationDate;
-        this.RangeKey = guid + "-RangeKey";
+        this.RangeKey = guid + RANGE_KEY_EXT;
     }
     public static JobInfoEntity FromJobRequestData(JobRequestData data)
     {

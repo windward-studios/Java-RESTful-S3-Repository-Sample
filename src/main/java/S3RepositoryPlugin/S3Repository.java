@@ -75,6 +75,7 @@ public class S3Repository implements IRepository {
 
 
         eventSignal = new AutoResetEvent(true);
+
         // This thread manages all the background threads. It sleeps on an event and
         // when awoken, fires off anything it can.
         // This is used so web requests that call signal aren't delayed as background
@@ -131,8 +132,6 @@ public class S3Repository implements IRepository {
                 e.printStackTrace();
             }
         }
-//		if (Log.isDebugEnabled())O
-//			Log.debug("FileSystemRepository management worker stopped");
     }
 
     @Override
@@ -142,10 +141,7 @@ public class S3Repository implements IRepository {
             JobRequestData jobData = new JobRequestData(template, request_type, LocalDateTime.now());
             Log.info("[S3RepoPlugin] Created request " + jobData.Template.getGuid());
 
-
-            boolean success = storageManager.AddRequest(jobData);
-
-
+            storageManager.AddRequest(jobData);
 
             if (getJobHandler() != null) {
                 getJobHandler().Signal();
@@ -241,29 +237,23 @@ public class S3Repository implements IRepository {
         try
         {
             boolean result;
-            if(serviceError.getType().equals("net.windward.util.LicenseException"))
-            {
+            if(serviceError.getType().equals("net.windward.util.LicenseException")){
                 result = storageManager.UpdateRequest(template.getGuid(), RepositoryStatus.JOB_STATUS.LicenseError);
             }
-            else
-            {
+            else {
                 result = storageManager.UpdateRequest(template.getGuid(), RepositoryStatus.JOB_STATUS.Error);
             }
 
-
-            if(!result)
-            {
+            if(!result) {
                 Log.error("[S3RepoPlugin] saveError() error saving error status: "+template.getGuid());
             }
 
             result = storageManager.completeRequest(template.getGuid(), serviceError);
 
-            if(result)
-            {
+            if(result) {
                 Log.info("[S3RepoPlugin] saveError() Successfully saved error status: "+template.getGuid());
             }
-            else
-            {
+            else {
                 Log.error("[S3RepoPlugin] saveError() error saving error status: "+template.getGuid());
             }
         }
@@ -276,10 +266,9 @@ public class S3Repository implements IRepository {
     @Override
     public void saveTagTree(Template template, TagTree tagTree)
     {
-        boolean res;
         try
         {
-            res = storageManager.completeRequest(template.getGuid(), tagTree);
+            boolean res = storageManager.completeRequest(template.getGuid(), tagTree);
             if(res)
             {
                 Log.info("[S3RepoPlugin] saveTagTree() saved tagTree successfully: "+template.getGuid());

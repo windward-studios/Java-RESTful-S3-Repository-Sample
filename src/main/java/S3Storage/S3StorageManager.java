@@ -37,7 +37,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
-//import java.util.concurrent.semaphore;
 
 
 /**
@@ -82,10 +81,7 @@ public class S3StorageManager {
             semaphore.acquire();
             dynamoDBMapper.save(entity);
 
-
             log.debug("[S3StorageManager AddRequest] Added template ["+ requestData.Template.getGuid() +"] to blob storage");
-
-
 
             ObjectMapper mapper = new ObjectMapper();
             String test = mapper.writeValueAsString(requestData.Template);
@@ -335,8 +331,8 @@ public class S3StorageManager {
 
     public JobInfoEntity getRequestInfo(String guid)
     {
-
-        JobInfoEntity res = dynamoDBMapper.load(JobInfoEntity.class, guid, guid+"-RangeKey", new DynamoDBMapperConfig(DynamoDBMapperConfig.ConsistentReads.CONSISTENT));
+        String rangeKey = guid + JobInfoEntity.RANGE_KEY_EXT;
+        JobInfoEntity res = dynamoDBMapper.load(JobInfoEntity.class, guid, rangeKey, new DynamoDBMapperConfig(DynamoDBMapperConfig.ConsistentReads.CONSISTENT));
         return res;
     }
 
