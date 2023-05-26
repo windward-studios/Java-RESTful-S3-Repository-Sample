@@ -5,10 +5,18 @@ import com.amazonaws.services.dynamodbv2.datamodeling.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-@DynamoDBTable(tableName="S3Test")
+/**
+ * NOTE: This is sample code and is not production ready. It is not optimized to run at scale. Inteded for reference only
+ * for your own implementation.
+ */
+
+@DynamoDBTable(tableName="YOUR_TABLE_NAME")
 public class JobInfoEntity implements Serializable {
 
     public String Guid;
+
+
+    public String RangeKey;
     public int Type;
     public int Status;
     public LocalDateTime CreationDate;
@@ -23,6 +31,7 @@ public class JobInfoEntity implements Serializable {
         this.Type = type;
         this.Status = status;
         this.CreationDate = creationDate;
+        this.RangeKey = guid + "-RangeKey";
     }
     public static JobInfoEntity FromJobRequestData(JobRequestData data)
     {
@@ -61,6 +70,16 @@ public class JobInfoEntity implements Serializable {
     public void setCreationDate(LocalDateTime creationDate) {
         CreationDate = creationDate;
     }
+
+    @DynamoDBRangeKey(attributeName="RangeKey")
+    public String getRangeKey() {
+        return RangeKey;
+    }
+
+    public void setRangeKey(String rangeKey) {
+        RangeKey = rangeKey;
+    }
+
 
     static public class LocalDateTimeConverter implements DynamoDBTypeConverter<String, LocalDateTime> {
 

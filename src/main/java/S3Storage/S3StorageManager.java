@@ -38,11 +38,16 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
+
+/**
+ * NOTE: This is sample code and is not production ready. It is not optimized to run at scale. Inteded for reference only
+ * for your own implementation.
+ */
+
 public class S3StorageManager {
 
     private static AmazonDynamoDB client;
     protected static DynamoDB dynamoDB;
-    private static Table repositoryTable;
     private AmazonS3Client s3Client;
     private DynamoDBMapper dynamoDBMapper;
 
@@ -333,7 +338,7 @@ public class S3StorageManager {
     public JobInfoEntity getRequestInfo(String guid)
     {
 
-        JobInfoEntity res = dynamoDBMapper.load(JobInfoEntity.class, guid, new DynamoDBMapperConfig(DynamoDBMapperConfig.ConsistentReads.CONSISTENT));
+        JobInfoEntity res = dynamoDBMapper.load(JobInfoEntity.class, guid, guid+"-RangeKey", new DynamoDBMapperConfig(DynamoDBMapperConfig.ConsistentReads.CONSISTENT));
         return res;
     }
 
