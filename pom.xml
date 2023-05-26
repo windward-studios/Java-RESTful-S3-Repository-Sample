@@ -26,16 +26,26 @@
 
     <repositories>
         <repository>
-            <id>windward-maven-repo</id>
-            <name>windward-maven-repo</name>
-            <url>https://windward.mycloudrepo.io/public/repositories/windward-libs</url>
+            <id>InternalJenovaRepo</id>
+            <url>https://pkgs.dev.azure.com/WindwardStudios/Jenova/_packaging/InternalJenovaRepo/maven/v1</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>io.cloudrepo</id>
+            <url>https://windward.mycloudrepo.io/repositories/external-libs</url>
+            <releases/>
         </repository>
     </repositories>
     <dependencies>
         <dependency>
             <groupId>net.windward</groupId>
             <artifactId>WindwardRepository</artifactId>
-            <version>22.2.1.0</version>
+            <version>LATEST</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>

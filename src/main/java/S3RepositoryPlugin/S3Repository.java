@@ -20,10 +20,16 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
+
+/**
+ * NOTE: This is sample code and is not production ready. It is not optimized to run at scale. Inteded for reference only
+ * for your own implementation.
+ */
 
 public class S3Repository implements IRepository {
 
@@ -46,6 +52,7 @@ public class S3Repository implements IRepository {
 
     public S3Repository()
     {
+        Log.info("Initializing S3Repository");
         aWSCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
         s3Client = (AmazonS3Client) AmazonS3ClientBuilder.standard().withCredentials(new AWSStaticCredentialsProvider(aWSCredentials)).withRegion(Regions.US_EAST_1).build();
         storageManager = new S3StorageManager(aWSCredentials, s3Client, bucketName);
@@ -68,19 +75,16 @@ public class S3Repository implements IRepository {
 
 
         eventSignal = new AutoResetEvent(true);
+
         // This thread manages all the background threads. It sleeps on an event and
         // when awoken, fires off anything it can.
         // This is used so web requests that call signal aren't delayed as background
         // tasks might be started.
         CancellationTokenSource tokenSource = new CancellationTokenSource();
         CancellationToken token = tokenSource.getToken();
-        token.register(new Runnable() {
 
-            @Override
-            public void run() {
-                eventSignal.set();
-            }
-        });
+        token.register(() -> eventSignal.set());
+
         new Thread((new Runnable() {
             CancellationToken cancelToken;
 
@@ -128,8 +132,6 @@ public class S3Repository implements IRepository {
                 e.printStackTrace();
             }
         }
-//		if (Log.isDebugEnabled())O
-//			Log.debug("FileSystemRepository management worker stopped");
     }
 
     @Override
@@ -139,7 +141,7 @@ public class S3Repository implements IRepository {
             JobRequestData jobData = new JobRequestData(template, request_type, LocalDateTime.now());
             Log.info("[S3RepoPlugin] Created request " + jobData.Template.getGuid());
 
-            boolean success = storageManager.AddRequest(jobData);
+            storageManager.AddRequest(jobData);
 
             if (getJobHandler() != null) {
                 getJobHandler().Signal();
@@ -235,29 +237,23 @@ public class S3Repository implements IRepository {
         try
         {
             boolean result;
-            if(serviceError.getType().equals("net.windward.util.LicenseException"))
-            {
+            if(serviceError.getType().equals("net.windward.util.LicenseException")){
                 result = storageManager.UpdateRequest(template.getGuid(), RepositoryStatus.JOB_STATUS.LicenseError);
             }
-            else
-            {
+            else {
                 result = storageManager.UpdateRequest(template.getGuid(), RepositoryStatus.JOB_STATUS.Error);
             }
 
-
-            if(!result)
-            {
+            if(!result) {
                 Log.error("[S3RepoPlugin] saveError() error saving error status: "+template.getGuid());
             }
 
             result = storageManager.completeRequest(template.getGuid(), serviceError);
 
-            if(result)
-            {
+            if(result) {
                 Log.info("[S3RepoPlugin] saveError() Successfully saved error status: "+template.getGuid());
             }
-            else
-            {
+            else {
                 Log.error("[S3RepoPlugin] saveError() error saving error status: "+template.getGuid());
             }
         }
@@ -270,10 +266,9 @@ public class S3Repository implements IRepository {
     @Override
     public void saveTagTree(Template template, TagTree tagTree)
     {
-        boolean res;
         try
         {
-            res = storageManager.completeRequest(template.getGuid(), tagTree);
+            boolean res = storageManager.completeRequest(template.getGuid(), tagTree);
             if(res)
             {
                 Log.info("[S3RepoPlugin] saveTagTree() saved tagTree successfully: "+template.getGuid());
@@ -435,6 +430,11 @@ public class S3Repository implements IRepository {
         return docMeta;
     }
 
+
+    /*
+    * Implement the following 2 methods to make use of document performance feature. https://fluent.apryse.com/documentation/engine-guide/Fluent%20RESTful%20Engines/JavaRestSotragePlugin#methods-and-variables
+    */
+
     @Override
     public void saveDocumentPerformanceObject(DocumentPerformance documentPerformance, String s) {
 
@@ -443,5 +443,24 @@ public class S3Repository implements IRepository {
     @Override
     public DocumentPerformance getDocumentPerformanceObject(String s) {
         return null;
+    }
+
+
+    /*
+    * Implement the following methods to make use of cached resource feature. https://fluent.apryse.com/documentation/engine-guide/Fluent%20RESTful%20Engines/JavaRestSotragePlugin#methods-and-variables
+     */
+    @Override
+    public void saveCachedResource(CachedResource cachedResource) throws Exception {
+
+    }
+
+    @Override
+    public net.windward.util.AccessProviders.models.CachedResource getCachedResource(String s) {
+        return null;
+    }
+
+    @Override
+    public void deleteCachedResource(String s) throws FileNotFoundException {
+
     }
 }

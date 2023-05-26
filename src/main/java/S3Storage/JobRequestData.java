@@ -11,6 +11,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+
+/**
+ * NOTE: This is sample code and is not production ready. It is not optimized to run at scale. Inteded for reference only
+ * for your own implementation.
+ */
+
 @XmlRootElement(name="JobRequestData")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class JobRequestData implements Serializable {
