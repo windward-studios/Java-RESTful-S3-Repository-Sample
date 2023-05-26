@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * NOTE: This is sample code and is not production ready. It is not optimized to run at scale. Inteded for reference only
+ * NOTE: This is sample code and is not production ready. It is not optimized to run at scale. Intended for reference only
  * for your own implementation.
  */
 

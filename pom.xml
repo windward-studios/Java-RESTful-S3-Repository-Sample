@@ -45,7 +45,7 @@
         <dependency>
             <groupId>net.windward</groupId>
             <artifactId>WindwardRepository</artifactId>
-            <version>LATEST</version>
+            <version>23.2.2.1</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
