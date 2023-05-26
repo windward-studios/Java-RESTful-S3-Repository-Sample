@@ -26,8 +26,12 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * NOTE: This is sample code and is not production ready. It is not optimized to run at scale. Inteded for reference only
+ * for your own implementation.
+ */
 
-public class S3Repository implements IRepository, Runnable {
+public class S3Repository implements IRepository {
 
     private String bucketName = "";
     private String awsAccessKey = "";
@@ -443,6 +447,11 @@ public class S3Repository implements IRepository, Runnable {
         return docMeta;
     }
 
+
+    /*
+    * Implement the following 2 methods to make use of document performance feature. https://fluent.apryse.com/documentation/engine-guide/Fluent%20RESTful%20Engines/JavaRestSotragePlugin#methods-and-variables
+    */
+
     @Override
     public void saveDocumentPerformanceObject(DocumentPerformance documentPerformance, String s) {
 
@@ -453,6 +462,10 @@ public class S3Repository implements IRepository, Runnable {
         return null;
     }
 
+
+    /*
+    * Implement the following methods to make use of cached resource feature. https://fluent.apryse.com/documentation/engine-guide/Fluent%20RESTful%20Engines/JavaRestSotragePlugin#methods-and-variables
+     */
     @Override
     public void saveCachedResource(CachedResource cachedResource) throws Exception {
 
@@ -465,11 +478,6 @@ public class S3Repository implements IRepository, Runnable {
 
     @Override
     public void deleteCachedResource(String s) throws FileNotFoundException {
-
-    }
-
-    @Override
-    public void run() {
 
     }
 }
