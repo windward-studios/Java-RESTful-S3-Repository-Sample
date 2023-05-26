@@ -84,7 +84,7 @@ public class S3StorageManager {
 
 
             log.debug("[S3StorageManager AddRequest] Added template ["+ requestData.Template.getGuid() +"] to blob storage");
-            System.out.println("[S3StorageManager AddRequest] Added template ["+ requestData.Template.getGuid() +"] to blob storage");
+
 
 
             ObjectMapper mapper = new ObjectMapper();
@@ -97,7 +97,6 @@ public class S3StorageManager {
 
             s3Client.putObject(objectRequest);
             log.debug("[S3StorageManager AddRequest] Successfully added template ["+ requestData.Template.getGuid() +"]");
-            System.out.println("[S3StorageManager AddRequest] Successfully added template ["+ requestData.Template.getGuid() +"]");
 
             return true;
         }

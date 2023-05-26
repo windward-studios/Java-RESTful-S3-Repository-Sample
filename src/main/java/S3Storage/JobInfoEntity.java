@@ -14,8 +14,6 @@ import java.time.LocalDateTime;
 public class JobInfoEntity implements Serializable {
 
     public String Guid;
-
-
     public String RangeKey;
     public int Type;
     public int Status;

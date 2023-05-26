@@ -141,10 +141,11 @@ public class S3Repository implements IRepository {
             template.setGuid(UUID.randomUUID().toString());
             JobRequestData jobData = new JobRequestData(template, request_type, LocalDateTime.now());
             Log.info("[S3RepoPlugin] Created request " + jobData.Template.getGuid());
-            System.out.println("[S3RepoPlugin] Created request " + jobData.Template.getGuid());
+
 
             boolean success = storageManager.AddRequest(jobData);
-            System.out.println("[S3RepoPlugin] Created request " + jobData.Template.getGuid() + " success: " + success);
+
+
 
             if (getJobHandler() != null) {
                 getJobHandler().Signal();
@@ -155,7 +156,6 @@ public class S3Repository implements IRepository {
         catch(Exception ex)
         {
             Log.error("[S3RepoPlugin] createRequest() Failed to created request " + template.getGuid());
-            System.out.println("[S3RepoPlugin] createRequest() Failed to created request " + template.getGuid());
         }
 
         return null;
@@ -165,27 +165,23 @@ public class S3Repository implements IRepository {
     public RepositoryRequest takeRequest() {
 
         Log.info("[S3RepoPlugin] Take request called");
-        System.out.println("[S3RepoPlugin] Take request called");
         try
         {
             JobRequestData job = storageManager.getOldestJobAndGenerate();
             if(job != null)
             {
                 Log.info("[S3RepoPlugin] Took requests: "+job.Template.getGuid());
-                System.out.println("[S3RepoPlugin] Took requests: "+job.Template.getGuid());
                 return new RepositoryRequest(job.Template, job.RequestType);
             }
             else
             {
                 Log.info("[S3RepoPlugin] takeRequest() returning null. No requests are in the queue.");
-                System.out.println("[S3RepoPlugin] takeRequest() returning null. No requests are in the queue.");
                 return null;
             }
         }
         catch (Exception ex)
         {
             Log.error("[S3RepoPlugin] TakeRequest Error in taking request: " +ex);
-            System.out.println("[S3RepoPlugin] TakeRequest Error in taking request: " +ex);
         }
         return null;
     }
@@ -198,13 +194,11 @@ public class S3Repository implements IRepository {
         if(res)
         {
             Log.info("[S3RepoPlugin] saveRequest() saved request successfully: "+template.getGuid());
-            System.out.println("[S3RepoPlugin] saveRequest() saved request successfully: "+template.getGuid());
             completeJob(template);
         }
         else
         {
             Log.error("[S3RepoPlugin] saveRequest() error saving request: "+template.getGuid());
-            System.out.println("[S3RepoPlugin] saveRequest() error saving request: "+template.getGuid());
         }
     }
 
