@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
+//import java.util.concurrent.semaphore;
 
 
 /**
@@ -155,12 +156,10 @@ public class S3StorageManager {
 
             return true;
         }
-        catch (AmazonServiceException ex)
+        catch (AmazonServiceException | InterruptedException ex)
         {
             log.error("[S3StorageManager completeRequest threw an error when trying to put object in S3: "+ex);
             return false;
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
         finally
         {
@@ -343,8 +342,8 @@ public class S3StorageManager {
     }
 
     private void createClient(BasicAWSCredentials aWSCredentials) {
-//        ClientConfiguration cf = new ClientConfiguration().withConnectionTimeout(2000).withClientExecutionTimeout(2000).withRequestTimeout(2000).withSocketTimeout(2000).withRetryPolicy(PredefinedRetryPolicies.getDynamoDBDefaultRetryPolicyWithCustomMaxRetries(15));
-        client = AmazonDynamoDBClientBuilder.standard().withRegion(Regions.US_EAST_1).withCredentials(new AWSStaticCredentialsProvider(aWSCredentials)).build();
+        ClientConfiguration cf = new ClientConfiguration().withConnectionTimeout(2000).withClientExecutionTimeout(2000).withRequestTimeout(2000).withSocketTimeout(2000).withRetryPolicy(PredefinedRetryPolicies.getDynamoDBDefaultRetryPolicyWithCustomMaxRetries(15));
+        client = AmazonDynamoDBClientBuilder.standard().withRegion(Regions.US_EAST_1).withCredentials(new AWSStaticCredentialsProvider(aWSCredentials)).withClientConfiguration(cf).build();
         dynamoDB = new DynamoDB(client);
         dynamoDBMapper = new DynamoDBMapper(client);
     }
