@@ -26,14 +26,9 @@
 
     <repositories>
         <repository>
-            <id>InternalJenovaRepo</id>
-            <url>https://pkgs.dev.azure.com/WindwardStudios/Jenova/_packaging/InternalJenovaRepo/maven/v1</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
+            <id>windward-maven-repo</id>
+            <name>windward-maven-repo</name>
+            <url>https://windward.mycloudrepo.io/public/repositories/windward-libs</url>
         </repository>
         <repository>
             <id>io.cloudrepo</id>
